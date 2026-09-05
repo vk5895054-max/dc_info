@@ -2,13 +2,14 @@ import { Suspense } from 'react';
 import { lazyWithRetry as lazy } from '../utils/lazyWithRetry';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Send, Webhook, Activity, Loader2, Coins } from 'lucide-react';
+// import { MessageSquare, Send, Webhook, Activity, Loader2, Coins } from 'lucide-react';
+import { MessageSquare, Send,  Activity, Loader2, Coins } from 'lucide-react';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import {
   useSessionsQuery,
   useSessionStatsQuery,
-  useWebhooksQuery,
+  // useWebhooksQuery,
   useStopSessionMutation,
   useStatsOverviewQuery,
   useApiKeysQuery,
@@ -27,7 +28,7 @@ export function Dashboard() {
   const { role, isDemo, isReseller, isUser, isAdmin } = useRole() as any;
   const { data: sessions = [], isLoading: loadingSessions, error: sessionsError } = useSessionsQuery();
   const { data: stats } = useSessionStatsQuery();
-  const { data: webhooks = [] } = useWebhooksQuery();
+  // const { data: webhooks = [] } = useWebhooksQuery();
   const { data: apiKeys = [] } = useApiKeysQuery();
   // /stats/overview is ADMIN-only; for a non-admin key it 403s → overview stays undefined and the
   // message cards fall back to '—' without breaking the (un-gated) session cards.
@@ -45,7 +46,7 @@ export function Dashboard() {
   const loading = loadingSessions;
   const error =
     sessionsError instanceof Error ? sessionsError.message : sessionsError ? t('dashboard.loadError') : null;
-  const webhookCount = webhooks.length;
+  // const webhookCount = webhooks.length;
 
   const handleDisconnect = async (id: string) => {
     try {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { History, Search, Loader2, FileText } from 'lucide-react';
-import { useDocumentTitle } from '../hooks/useDocumentTitle';
+// import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useQuery } from '@tanstack/react-query';
 import { useSessionsQuery } from '../hooks/queries';
 import { templateApi } from '../services/api';

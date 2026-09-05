@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { History, Search, Loader2 } from 'lucide-react';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useQuery } from '@tanstack/react-query';
@@ -8,7 +7,6 @@ import { PageHeader } from '../components/PageHeader';
 import { useState } from 'react';
 
 export function CampaignHistory() {
-  const { t } = useTranslation();
   useDocumentTitle('Campaign History');
   const { data: history = [], isLoading } = useQuery({
     queryKey: ['outreach-history'],

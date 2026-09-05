@@ -443,7 +443,7 @@ export function Campaigns() {
   const [messageType, setMessageType] = useState<'text' | 'image' | 'document'>('text');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaBase64, setMediaBase64] = useState<string | null>(null);
-  const [useRegistry, setUseRegistry] = useState(false);
+  const [useRegistry] = useState(false);
   const [customList, setCustomList] = useState('');
   const [selectedSessions, setSelectedSessions] = useState<string[]>(readySessions.map(s => s.name));
   const [saveContactFirst, setSaveContactFirst] = useState(true);
@@ -628,7 +628,7 @@ export function Campaigns() {
       setMessageType((campaign.messageType as any) || 'text');
     }
     // Restore contacts as customList
-    const lines = campaign.contacts?.map((c: any) => c.name ? `${c.phone}, ${c.name}` : c.phone).join('\n') || '';
+    const lines = (campaign as any).contacts?.map((c: any) => c.name ? `${c.phone}, ${c.name}` : c.phone).join('\n') || '';
     setCustomList(lines);
     const sessNames = campaign.sessions?.map((s: any) => s.sessionName) || campaign.distribution?.map((d: any) => d.sessionName) || [];
     setSelectedSessions(sessNames);
