@@ -1,0 +1,103 @@
+name: Deploy to Hostinger via FTP
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & FTP Deploy (no Docker)
+    environment: production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js 22.19.0
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22.19.0'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            dashboard/package-lock.json
+
+      - name: Install deps
+        run: npm ci --ignore-scripts
+
+      - name: Patch + Build
+        run: |
+          node scripts/postinstall.js
+          npm run build
+          cd dashboard && npm ci --ignore-scripts && npm run build
+          cd ..
+          rm -rf dist/dashboard
+          cp -R dashboard/dist dist/dashboard
+          ls -lh dist/main.js dashboard/dist/index.html
+
+      - name: Prepare deploy files (fix gitignored deploy/ not in checkout)
+        run: |
+          # deploy/ is gitignored, so create needed files at repo root
+          if [ ! -f ecosystem.config.js ]; then
+            if [ -f deploy/ecosystem.config.js ]; then cp deploy/ecosystem.config.js ./ecosystem.config.js; else echo "module.exports={apps:[{name:'openwa',script:'./dist/main.js',instances:1,exec_mode:'fork',env:{NODE_ENV:'production',PORT:10000}}]}" > ecosystem.config.js; fi
+          fi
+          ls -lh ecosystem.config.js .env.production 2>&1 | head -n 20
+          echo "--- deploy files ready ---"
+
+      - name: Install lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
+      - name: Deploy via FTP
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST || secrets.HOST }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME || secrets.USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD || secrets.PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT || secrets.PORT }}
+          FTP_PATH: ${{ secrets.FTP_PATH || 'public_html' }}
+        run: |
+          set -e
+          HOST=$FTP_HOST
+          HOST=${HOST#ftp://}
+          USER=$FTP_USERNAME
+          PASS=$FTP_PASSWORD
+          PORT=${FTP_PORT:-21}
+          DEPLOY_PATH=${FTP_PATH:-public_html}
+          if [ -z "$HOST" ] || [ -z "$USER" ] || [ -z "$PASS" ]; then
+            echo "::error::Set FTP_HOST, FTP_USERNAME, and FTP_PASSWORD GitHub secrets from hPanel → Files → FTP Accounts → View"
+            exit 1
+          fi
+          echo "FTP $USER@$HOST:$PORT (using the exact Hostinger FTP host; username is the FTP account, not root)"
+          # Use the exact FTP Host shown in hPanel, Port 21, and the FTP account username.
+          # The supplied FTP account is rooted at public_html; FTP_PATH can override that directory.
+          # Use proper quoting for password with special chars, passive mode for Hostinger firewall
+          lftp -c "
+            set ftp:ssl-allow yes
+            set ftp:ssl-force no
+            set ssl:verify-certificate no
+            set ftp:passive-mode on
+            set net:timeout 30
+            set net:max-retries 2
+            set net:reconnect-interval-base 2
+            open -u \"$USER\",\"$PASS\" -p $PORT $HOST
+            mkdir -p $DEPLOY_PATH/dist
+            mkdir -p $DEPLOY_PATH/dashboard/dist
+            mirror --reverse --verbose --overwrite --parallel=2 --continue \
+              --exclude node_modules/ --exclude .git/ --exclude data/ \
+              ./dist $DEPLOY_PATH/dist
+            mirror --reverse --verbose --overwrite --parallel=2 --continue \
+              ./dashboard/dist $DEPLOY_PATH/dashboard/dist
+            put -O $DEPLOY_PATH package.json
+            put -O $DEPLOY_PATH package-lock.json
+            put -O $DEPLOY_PATH .npmrc
+            put -O $DEPLOY_PATH .nvmrc
+            put -O $DEPLOY_PATH ecosystem.config.js
+            bye
+          " || {
+            echo "::error::FTP mirror failed - check FTP_HOST, FTP_USERNAME, FTP_PASSWORD, and FTP_PORT=21 in the production environment"
+            echo "Find correct values: hPanel → Websites → Dashboard → Files → FTP Accounts → View"
+            exit 1
+          }
+          echo "Upload done - now trigger Hostinger Node restart (if using hPanel Node.js, it auto-restarts on file change) or add SSH PM2 step for VPS"
+
+      - name: Post-deploy info
+        run: echo "Deployed to Hostinger FTP. If Node.js app is enabled in hPanel, it will restart automatically. Check https://lightsalmon-hummingbird-788680.hostingersite.com/api/health"

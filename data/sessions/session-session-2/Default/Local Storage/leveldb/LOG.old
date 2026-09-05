@@ -1,0 +1,6 @@
+2026/09/05-13:01:06.959 298c Reusing MANIFEST C:\Users\USER\Downloads\OpenWA\OpenWA\data\sessions\session-session-2\Default\Local Storage\leveldb/MANIFEST-000001
+2026/09/05-13:01:06.966 298c Recovering log #19
+2026/09/05-13:01:06.969 298c Reusing old log C:\Users\USER\Downloads\OpenWA\OpenWA\data\sessions\session-session-2\Default\Local Storage\leveldb/000019.log 
+2026/09/05-13:02:03.910 21ac Level-0 table #24: started
+2026/09/05-13:02:03.922 21ac Level-0 table #24: 12988 bytes OK
+2026/09/05-13:02:03.927 21ac Delete type=0 #19

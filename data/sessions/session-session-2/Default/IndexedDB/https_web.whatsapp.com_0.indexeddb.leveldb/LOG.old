@@ -1,0 +1,63 @@
+2026/09/05-13:01:07.877 2bc0 Reusing MANIFEST C:\Users\USER\Downloads\OpenWA\OpenWA\data\sessions\session-session-2\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/09/05-13:01:07.878 2bc0 Recovering log #492
+2026/09/05-13:01:07.950 2bc0 Reusing old log C:\Users\USER\Downloads\OpenWA\OpenWA\data\sessions\session-session-2\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000492.log 
+2026/09/05-13:01:07.951 2bc0 Delete type=2 #482
+2026/09/05-13:01:07.951 2bc0 Delete type=2 #483
+2026/09/05-13:01:07.951 2bc0 Delete type=2 #484
+2026/09/05-13:01:07.951 2bc0 Delete type=2 #485
+2026/09/05-13:01:07.951 2bc0 Delete type=2 #486
+2026/09/05-13:01:07.951 2bc0 Delete type=2 #487
+2026/09/05-13:01:07.951 2bc0 Delete type=2 #488
+2026/09/05-13:01:07.951 2bc0 Delete type=2 #489
+2026/09/05-13:01:07.951 2bc0 Delete type=2 #490
+2026/09/05-13:01:07.951 2bc0 Delete type=2 #493
+2026/09/05-13:01:10.212 3f5c Level-0 table #505: started
+2026/09/05-13:01:10.253 3f5c Level-0 table #505: 1147343 bytes OK
+2026/09/05-13:01:10.257 3f5c Delete type=0 #492
+2026/09/05-13:01:10.365 2db0 Compacting 1@1 + 9@2 files
+2026/09/05-13:01:10.460 2db0 Generated table #506@1: 89625 keys, 2241937 bytes
+2026/09/05-13:01:10.541 2db0 Generated table #507@1: 93409 keys, 2315653 bytes
+2026/09/05-13:01:10.611 2db0 Generated table #508@1: 24082 keys, 2183699 bytes
+2026/09/05-13:01:10.662 2db0 Generated table #509@1: 2730 keys, 2154731 bytes
+2026/09/05-13:01:10.722 2db0 Generated table #510@1: 21222 keys, 2223516 bytes
+2026/09/05-13:01:10.777 2db0 Generated table #511@1: 13158 keys, 2151400 bytes
+2026/09/05-13:01:10.853 2db0 Generated table #512@1: 74663 keys, 2218582 bytes
+2026/09/05-13:01:10.948 2db0 Generated table #513@1: 88762 keys, 2236531 bytes
+2026/09/05-13:01:10.995 2db0 Generated table #514@1: 38426 keys, 1092191 bytes
+2026/09/05-13:01:10.995 2db0 Compacted 1@1 + 9@2 files => 18818240 bytes
+2026/09/05-13:01:10.996 2db0 compacted to: files[ 0 0 9 0 0 0 0 ]
+2026/09/05-13:01:10.996 2db0 Delete type=2 #494
+2026/09/05-13:01:10.997 2db0 Delete type=2 #495
+2026/09/05-13:01:10.997 2db0 Delete type=2 #496
+2026/09/05-13:01:10.997 2db0 Delete type=2 #497
+2026/09/05-13:01:10.997 2db0 Delete type=2 #498
+2026/09/05-13:01:10.997 2db0 Delete type=2 #499
+2026/09/05-13:01:10.997 2db0 Delete type=2 #500
+2026/09/05-13:01:10.997 2db0 Delete type=2 #501
+2026/09/05-13:01:10.997 2db0 Delete type=2 #502
+2026/09/05-13:01:10.997 2db0 Delete type=2 #505
+2026/09/05-13:02:05.223 2db0 Level-0 table #516: started
+2026/09/05-13:02:05.271 2db0 Level-0 table #516: 1164349 bytes OK
+2026/09/05-13:02:05.275 2db0 Delete type=0 #504
+2026/09/05-13:02:05.825 3f5c Compacting 1@1 + 9@2 files
+2026/09/05-13:02:05.953 3f5c Generated table #517@1: 89906 keys, 2241425 bytes
+2026/09/05-13:02:06.060 3f5c Generated table #518@1: 93310 keys, 2314159 bytes
+2026/09/05-13:02:06.131 3f5c Generated table #519@1: 28932 keys, 2185876 bytes
+2026/09/05-13:02:06.188 3f5c Generated table #520@1: 2638 keys, 2152832 bytes
+2026/09/05-13:02:06.288 3f5c Generated table #521@1: 20140 keys, 2219325 bytes
+2026/09/05-13:02:06.366 3f5c Generated table #522@1: 14266 keys, 2159002 bytes
+2026/09/05-13:02:06.457 3f5c Generated table #523@1: 70046 keys, 2212194 bytes
+2026/09/05-13:02:06.554 3f5c Generated table #524@1: 88829 keys, 2238130 bytes
+2026/09/05-13:02:06.619 3f5c Generated table #525@1: 43175 keys, 1211941 bytes
+2026/09/05-13:02:06.620 3f5c Compacted 1@1 + 9@2 files => 18934884 bytes
+2026/09/05-13:02:06.621 3f5c compacted to: files[ 0 0 9 0 0 0 0 ]
+2026/09/05-13:02:06.622 3f5c Delete type=2 #506
+2026/09/05-13:02:06.622 3f5c Delete type=2 #507
+2026/09/05-13:02:06.623 3f5c Delete type=2 #508
+2026/09/05-13:02:06.623 3f5c Delete type=2 #509
+2026/09/05-13:02:06.623 3f5c Delete type=2 #510
+2026/09/05-13:02:06.624 3f5c Delete type=2 #511
+2026/09/05-13:02:06.624 3f5c Delete type=2 #512
+2026/09/05-13:02:06.624 3f5c Delete type=2 #513
+2026/09/05-13:02:06.624 3f5c Delete type=2 #514
+2026/09/05-13:02:06.624 3f5c Delete type=2 #516

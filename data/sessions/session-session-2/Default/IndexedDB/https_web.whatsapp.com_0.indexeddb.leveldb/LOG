@@ -1,0 +1,28 @@
+2026/09/05-13:30:04.799 2238 Reusing MANIFEST C:\Users\USER\Downloads\OpenWA\OpenWA\data\sessions\session-session-2\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/09/05-13:30:04.801 2238 Recovering log #515
+2026/09/05-13:30:04.834 2238 Reusing old log C:\Users\USER\Downloads\OpenWA\OpenWA\data\sessions\session-session-2\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000515.log 
+2026/09/05-13:30:13.359 2808 Level-0 table #528: started
+2026/09/05-13:30:13.495 2808 Level-0 table #528: 1166128 bytes OK
+2026/09/05-13:30:13.502 2808 Delete type=0 #515
+2026/09/05-13:30:13.865 2808 Compacting 1@1 + 9@2 files
+2026/09/05-13:30:14.042 2808 Generated table #529@1: 89206 keys, 2240637 bytes
+2026/09/05-13:30:14.198 2808 Generated table #530@1: 99745 keys, 2270676 bytes
+2026/09/05-13:30:14.317 2808 Generated table #531@1: 29608 keys, 2246267 bytes
+2026/09/05-13:30:14.369 2808 Generated table #532@1: 2539 keys, 2150956 bytes
+2026/09/05-13:30:14.479 2808 Generated table #533@1: 18231 keys, 2213113 bytes
+2026/09/05-13:30:14.590 2808 Generated table #534@1: 16251 keys, 2170582 bytes
+2026/09/05-13:30:14.688 2808 Generated table #535@1: 63691 keys, 2201187 bytes
+2026/09/05-13:30:14.843 2808 Generated table #536@1: 88798 keys, 2236474 bytes
+2026/09/05-13:30:14.907 2808 Generated table #537@1: 49801 keys, 1377405 bytes
+2026/09/05-13:30:14.907 2808 Compacted 1@1 + 9@2 files => 19107297 bytes
+2026/09/05-13:30:14.909 2808 compacted to: files[ 0 0 9 0 0 0 0 ]
+2026/09/05-13:30:14.910 2808 Delete type=2 #517
+2026/09/05-13:30:14.910 2808 Delete type=2 #518
+2026/09/05-13:30:14.911 2808 Delete type=2 #519
+2026/09/05-13:30:14.911 2808 Delete type=2 #520
+2026/09/05-13:30:14.911 2808 Delete type=2 #521
+2026/09/05-13:30:14.911 2808 Delete type=2 #522
+2026/09/05-13:30:14.911 2808 Delete type=2 #523
+2026/09/05-13:30:14.911 2808 Delete type=2 #524
+2026/09/05-13:30:14.912 2808 Delete type=2 #525
+2026/09/05-13:30:14.912 2808 Delete type=2 #528
