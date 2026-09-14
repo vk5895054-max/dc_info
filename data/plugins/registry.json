@@ -1,0 +1,26 @@
+[
+  {
+    "id": "whatsapp-web.js",
+    "type": "engine",
+    "name": "WhatsApp Web.js Engine",
+    "version": "1.0.0",
+    "status": "enabled",
+    "config": {},
+    "builtIn": true,
+    "installedAt": "2026-09-14T06:50:23.880Z",
+    "updatedAt": "2026-09-14T11:12:37.644Z",
+    "enabledByOperator": false
+  },
+  {
+    "id": "baileys",
+    "type": "engine",
+    "name": "Baileys Engine",
+    "version": "1.0.0",
+    "status": "installed",
+    "config": {},
+    "builtIn": true,
+    "installedAt": "2026-09-14T06:50:23.883Z",
+    "updatedAt": "2026-09-14T11:12:37.643Z",
+    "enabledByOperator": false
+  }
+]

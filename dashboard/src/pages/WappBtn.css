@@ -1,0 +1,23 @@
+.wappbtn-page{max-width:1200px;margin:0 auto;padding:12px}
+.wappbtn-layout{display:flex;gap:16;align-items:flex-start}
+.wappbtn-left{width:260px;flex-shrink:0;border:1px solid #e2e8f0;border-radius:8;background:#fff;padding:0;overflow:hidden}
+.wappbtn-left-head{font-weight:700;text-align:center;padding:8px;border-bottom:1px solid #e2e8f0}
+.wappbtn-numbers{width:100%;border:1px solid #cbd5e1;border-radius:6;padding:8px;font-size:13;resize:vertical}
+.wappbtn-schedule{display:flex;align-items:center;gap:6;margin:8px;font-size:13}
+.wappbtn-right{flex:1;border:1px solid #e2e8f0;border-radius:8;background:#fff;padding:12px}
+.wappbtn-campname-row{display:flex;border:1px solid #cbd5e1;border-radius:6;overflow:hidden;margin-bottom:8}
+.wappbtn-camp-label{background:#ef4444;color:#fff;padding:8px 14px;font-size:13;font-weight:600;display:flex;align-items:center}
+.wappbtn-camp-input{flex:1;border:none;padding:8px;outline:none}
+.wappbtn-text{width:100%;border:1px solid #cbd5e1;border-radius:6;padding:8px;font-size:13}
+.wappbtn-media-row{display:flex;gap:12;margin-top:12;align-items:flex-start}
+.wappbtn-drop{flex:1;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8;padding:24px;text-align:center;cursor:pointer;font-size:13}
+.wappbtn-drop.drag-over{background:#e0f2fe;border-color:#0ea5e9}
+.wappbtn-btns-col{flex:1;display:flex;flex-direction:column;gap:8}
+.wappbtn-btn-row{display:flex;border:1px solid #cbd5e1;border-radius:6;overflow:hidden}
+.wappbtn-btn-label{padding:8px 12px;background:#fff;border-right:1px solid #cbd5e1;font-size:13;font-weight:600;min-width:90px;display:flex;align-items:center}
+.wappbtn-btn-input{flex:1;border:none;padding:8px;outline:none;font-size:13}
+.wappbtn-btn-input.invalid{border:1px solid #ef4444;background:#fef2f2}
+.wappbtn-submit{background:#3b5bdb;color:#fff;border:none;border-radius:8;padding:10px 22px;font-weight:600;cursor:pointer;box-shadow:0 6px 12px rgba(59,91,219,0.3);display:flex;align-items:center;gap:6}
+.wappbtn-submit:disabled{opacity:0.6;cursor:not-allowed}
+.wappbtn-input{width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6}
+@media(max-width:900px){.wappbtn-layout{flex-direction:column}.wappbtn-left{width:100%}}
