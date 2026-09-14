@@ -114,8 +114,8 @@ export function CampaignHistory() {
 
   // per-campaign delivery report
   const { data: exec, isLoading: execLoading } = useQuery({
-    queryKey: ['outreach', reportId, 'execution'],
-    queryFn: () => outreachApi.execution(reportId!),
+    queryKey: ['outreach', reportId, 'execution', 'full'],
+    queryFn: () => outreachApi.execution(reportId!, true),
     enabled: Boolean(reportId) && reportTab==='delivery',
     staleTime: 15_000,
   });

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Put, Param, Body, HttpCode, HttpStatus, Req } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Put, Param, Body, HttpCode, HttpStatus, Req, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { OutreachService } from './outreach.service';
@@ -6,8 +6,9 @@ import { CurrentApiKey } from '../auth/decorators/auth.decorators';
 import { ApiKey } from '../auth/entities/api-key.entity';
 import { AuthService } from '../auth/auth.service';
 import { CreateOutreachCampaignDto, UpdateOutreachCampaignDto, OutreachCampaignResponseDto } from './dto/outreach-campaign.dto';
+import { OutreachCampaign } from './entities/outreach-campaign.entity';
 
-@ApiTags('Outreach')
+@ApiTags('Outreach Campaigns')
 @Controller('outreach/campaigns')
 export class OutreachController {
   constructor(
@@ -114,8 +115,8 @@ export class OutreachController {
     summary: 'Campaign execution report: per-recipient sent/failed/pending results from all batch statuses.',
   })
   @ApiResponse({ status: 200 })
-  execution(@Param('id') id: string) {
-    return this.outreach.executionReport(id);
+  execution(@Param('id') id: string, @Query('full') full?: string) {
+    return this.outreach.executionReport(id, full === '1');
   }
 
   @Get(':id/replies')

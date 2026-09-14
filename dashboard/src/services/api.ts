@@ -1689,8 +1689,8 @@ export const outreachApi = {
     request<OutreachCampaign>(`/outreach/campaigns/${encodeURIComponent(id)}/stop`, { method: 'POST' }),
   remove: (id: string) =>
     request<{ deleted: boolean }>(`/outreach/campaigns/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  execution: (id: string) =>
-    request<OutreachCampaignExecution>(`/outreach/campaigns/${encodeURIComponent(id)}/execution`),
+  execution: (id: string, full?: boolean) =>
+    request<OutreachCampaignExecution>(`/outreach/campaigns/${encodeURIComponent(id)}/execution${full ? '?full=1' : ''}`),
   history: () => request<Array<{ id: string; name: string; messageText: string; messageType: string; status: string; contactCount: number; createdByEmail: string | null; createdByRole: string | null; createdAt: string; startedAt: string | null; completedAt: string | null; totalCredits: number }>>('/outreach/campaigns/history/all'),
   replies: (id: string) => request<{ campaignId: string; campaignName: string; startedAt: string | null; summary: { totalContacts: number; replied: number; interested: number; notInterested: number; other: number; pending: number }; bySession: Array<{ sessionId: string; sessionName: string; replied: number; interested: number; notInterested: number; other: number }>; replies: Array<{ phone: string; name?: string; sessionId: string; sessionName: string; chatId: string; body: string; interest: 'interested' | 'not_interested' | 'other'; timestamp: number; createdAt: string }> }>(`/outreach/campaigns/${encodeURIComponent(id)}/replies`),
 };

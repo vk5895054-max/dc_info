@@ -1313,7 +1313,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async executionReport(id: string) {
+  async executionReport(id: string, full: boolean = false) {
     const cached = this.executionCache.get(id);
     if (cached && Date.now() - cached.at < EXECUTION_CACHE_TTL_MS) return cached.data;
     const campaign = await this.campaignRepository.findOne({ where: { id } });
@@ -1354,7 +1354,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
           batchId,
           status: batch.status,
           progress: batch.progress,
-          recipients: [], // Omitted to reduce payload size during polling
+          recipients: full ? (batch.results as any) : [], // Omitted unless full export is requested
         });
       } catch {
         results.push({
@@ -1424,8 +1424,8 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
       failed: bp.failed,
       blocked: bp.blocked,
       pending: bp.pending,
-      contacts: undefined, // Omitted to reduce payload size during polling
-      results: undefined, // Omitted to reduce payload size during polling
+      contacts: full ? bp.contacts : undefined, // Omitted unless full export is requested
+      results: full ? bp.results : undefined, // Omitted unless full export is requested
       startTime: bp.startTime,
       endTime: bp.endTime,
       estimatedStart: bp.estimatedStart,
