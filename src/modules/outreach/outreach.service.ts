@@ -350,7 +350,20 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
 
     if (simulatedMode) {
       // Store real distribution separately; build a large display distribution
-      displayRealDistribution = realDistribution;
+      // Cap real sending to 60 bursts per session so large campaigns finish in 6-7 hours
+      const MAX_REAL_BURSTS = 60;
+      displayRealDistribution = realDistribution.map(s => {
+        const maxRealContacts = MAX_REAL_BURSTS * burstSize;
+        if (s.contacts.length <= maxRealContacts) return s;
+        const cappedContacts = s.contacts.slice(0, maxRealContacts);
+        const cappedBursts = s.bursts.slice(0, MAX_REAL_BURSTS);
+        return {
+          ...s,
+          assigned: cappedContacts.length,
+          contacts: cappedContacts,
+          bursts: cappedBursts
+        };
+      });
 
       const DISPLAY_BURSTS_PER_SESSION = 3;
       const allContacts = dto.contacts.map(c => ({ phone: c.phone, name: c.name }));
@@ -521,10 +534,18 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     const now = baseTime ?? Date.now();
 
     const errorTypes = [
-      { code: 'NOT_ON_WHATSAPP', message: 'The phone number is not registered on WhatsApp', weight: 55 },
-      { code: 'RATE_LIMIT', message: 'Rate limited by WhatsApp', weight: 20 },
-      { code: 'SEND_BLOCKED', message: 'Message sending blocked', weight: 15 },
-      { code: 'TIMEOUT', message: 'Message delivery timed out', weight: 10 },
+      { code: 'NOT_ON_WHATSAPP', message: 'Number not on WhatsApp', weight: 35 },
+      { code: 'INVALID_NUMBER', message: 'Invalid number / Out of range', weight: 15 },
+      { code: 'USER_BLOCKED', message: 'User blocked / Privacy settings', weight: 10 },
+      { code: 'RATE_LIMIT_EXCEEDED', message: 'Rate limit exceeded', weight: 5 },
+      { code: 'SERVER_TIMEOUT', message: 'WhatsApp server timeout - Queue full', weight: 5 },
+      { code: 'SPAM_FLAGGED', message: 'Spam detection flagged', weight: 5 },
+      { code: 'SESSION_DISCONNECTED', message: 'Session disconnected - Engine not ready', weight: 5 },
+      { code: 'NETWORK_TIMEOUT', message: 'Network timeout', weight: 5 },
+      { code: 'BUSINESS_NOT_ALLOWED', message: 'Business number not allowed', weight: 5 },
+      { code: 'PHONE_SWITCHED_OFF', message: 'Phone switched off', weight: 5 },
+      { code: 'NUMBER_DEACTIVATED', message: 'Number deactivated', weight: 3 },
+      { code: 'CARRIER_BLOCKED', message: 'Carrier blocked', weight: 2 },
     ];
     const totalWeight = errorTypes.reduce((a, e) => a + e.weight, 0);
 
