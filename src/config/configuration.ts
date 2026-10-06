@@ -211,6 +211,11 @@ export default () => ({
       // uses Puppeteer's bundled Chromium. Required on hosts where the bundled binary
       // is missing or incompatible (Alpine, ARM, custom base images).
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      // Puppeteer protocol timeout (ms). whatsapp-web.js passes this through to
+      // puppeteer.launch(); without it, slow VPS networks hit `Runtime.callFunctionOn
+      // timed out` on every send and batches die. Env PUPPETEER_PROTOCOL_TIMEOUT wins,
+      // default 180s.
+      protocolTimeout: Number(process.env.PUPPETEER_PROTOCOL_TIMEOUT || 180000),
     },
     sessionDataPath: process.env.SESSION_DATA_PATH || './data/sessions',
     // Baileys engine (used when ENGINE_TYPE=baileys). Multi-file auth state base dir; each session
@@ -519,5 +524,27 @@ export default () => ({
       secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
       endpoint: process.env.S3_ENDPOINT,
     },
+  },
+
+  // GrizzlySMS virtual-number purchases (sms-activate-compatible handler API). Defaults target the
+  // operator's stated use case: Indian (country 22) WhatsApp numbers only, walking a descending
+  // price ladder so the cheapest available number wins. Overridable in whole via the env knobs.
+  grizzlysms: {
+    apiKey: process.env.GRIZZLYSMS_API_KEY || '',
+    baseUrl:
+      process.env.GRIZZLYSMS_BASE_URL || 'https://api.grizzlysms.com/stubs/handler_api.php',
+    // sms-activate country codes: 22 = India
+    country: process.env.GRIZZLYSMS_DEFAULT_COUNTRY || '22',
+    // sms-activate service code: wa = WhatsApp
+    service: process.env.GRIZZLYSMS_DEFAULT_SERVICE || 'wa',
+    // Descending price ladder, comma-separated USD: try $1.00, then $0.85, then $0.75.
+    priceLadder: process.env.GRIZZLYSMS_PRICE_LADDER || '1,0.85,0.75',
+    // Short-lived (~1h) Bearer JWT from grizzlysms.com for the account numbers API.
+    // Refresh from the site when expired; the UI also accepts a per-request token.
+    accountToken: process.env.GRIZZLYSMS_ACCOUNT_TOKEN || '',
+    requestTimeoutMs: (() => {
+      const n = parseInt(process.env.GRIZZLYSMS_REQUEST_TIMEOUT_MS ?? '', 10);
+      return Number.isFinite(n) && n > 0 ? n : 20000;
+    })(),
   },
 });

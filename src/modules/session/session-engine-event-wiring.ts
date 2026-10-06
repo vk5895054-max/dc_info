@@ -97,8 +97,9 @@ export class SessionEngineEventWiring {
      * Every caller has already passed the isLiveEngine fence; this closes the other axis. A node
      * whose lease lapsed keeps a live engine until the heartbeat's teardown completes, and a status
      * written in that window lands on a row a peer now owns. FAILED is the one that does not heal:
-     * the boot reset and the takeover sweep both exclude it by design, so the session leaves every
-     * automatic recovery path until an operator restarts it by hand.
+     * the takeover sweep excludes it by design (runtime), so the session leaves every automatic
+     * recovery path until an operator restarts it by hand — the single exception being the boot-time
+     * recovery in session.service's onModuleInit.
      */
     const persistStatus = (status: SessionStatus): void => {
       if (!host.ownsSession(id)) {

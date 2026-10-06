@@ -65,7 +65,11 @@
     "plugins": "插件",
     "logs": "日志",
     "contacts": "Contacts",
-    "campaigns": "Campaigns"
+    "campaigns": "Campaigns",
+    "grizzlySms": "Grizzly SMS",
+    "campaignHistory": "Campaign History",
+    "creditHistory": "Credit History",
+    "templateHistory": "Template History"
   },
   "chats": {
     "media": {

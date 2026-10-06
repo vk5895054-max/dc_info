@@ -62,11 +62,28 @@ export function withInboundDownloadTimeout<T>(
 }
 
 /**
+ * Whether sessions should fetch and sync chat history when they connect or start.
+ *
+ * FETCH_CHATS_AND_MEDIA=false keeps a session's engine light on (re)connect: on Baileys it disables the
+ * initial history + app-state sync entirely (no contacts, chats, recent history, or lid->phone mappings
+ * are downloaded), and it also disables inbound media download on both engines. Live messages still
+ * arrive and send stays fully functional — only the heavy per-session backfill is skipped. Default ON.
+ * Accepts 'false', '0', or 'no' (case-insensitive, whitespace-tolerant) to disable.
+ */
+export function fetchChatsAndMedia(): boolean {
+  const val = (process.env.FETCH_CHATS_AND_MEDIA ?? '').trim().toLowerCase();
+  return val !== 'false' && val !== '0' && val !== 'no';
+}
+
+/**
  * Whether inbound media download is enabled. When false, the engine skips downloading media from
  * incoming messages entirely — no decryption, no memory allocation, no storage. Override via
  * MEDIA_DOWNLOAD_ENABLED; accepts 'false', '0', or 'no' (case-insensitive, whitespace-tolerant) to disable.
  */
 export function isMediaDownloadEnabled(): boolean {
+  if (!fetchChatsAndMedia()) {
+    return false;
+  }
   const val = (process.env.MEDIA_DOWNLOAD_ENABLED ?? '').trim().toLowerCase();
   return val !== 'false' && val !== '0' && val !== 'no';
 }

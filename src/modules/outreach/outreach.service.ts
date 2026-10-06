@@ -12,8 +12,9 @@ import { SessionService } from '../session/session.service';
 import { Session } from '../session/entities/session.entity';
 import { SessionRestrictionStore } from '../session/session-restriction-store.service';
 import { BulkMessageService } from '../message/bulk-message.service';
-import { BatchStatus } from '../message/entities/message-batch.entity';
+import { BatchStatus, BatchMessageStatus, MessageBatch } from '../message/entities/message-batch.entity';
 import { OutreachCampaign, OutreachStatus } from './entities/outreach-campaign.entity';
+import { CampaignDeliveryLog } from './entities/campaign-delivery-log.entity';
 import { CreateOutreachCampaignDto, OutreachCampaignResponseDto } from './dto/outreach-campaign.dto';
 import { Message, MessageDirection } from '../message/entities/message.entity';
 import { In } from 'typeorm';
@@ -82,6 +83,8 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     private readonly restrictionStore: SessionRestrictionStore,
     @InjectRepository(Message, 'data')
     private readonly messageRepository: Repository<Message>,
+    @InjectRepository(CampaignDeliveryLog, 'data')
+    private readonly deliveryLogRepository: Repository<CampaignDeliveryLog>,
     @Optional()
     private readonly lidMappingStore?: LidMappingStoreService,
   ) {}
@@ -90,7 +93,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     const running = await this.campaignRepository.find({ where: { status: OutreachStatus.RUNNING } });
     for (const campaign of running) {
       this.logger.log(`resuming campaign ${campaign.name} (${campaign.id})`);
-      this.startRuntime(campaign);
+      await this.startRuntime(campaign);
     }
   }
 
@@ -533,20 +536,31 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     const shuffled = [...contacts].sort(() => Math.random() - 0.5);
     const now = baseTime ?? Date.now();
 
-    const errorTypes = [
-      { code: 'NOT_ON_WHATSAPP', message: 'Number not on WhatsApp', weight: 35 },
-      { code: 'INVALID_NUMBER', message: 'Invalid number / Out of range', weight: 15 },
-      { code: 'USER_BLOCKED', message: 'User blocked / Privacy settings', weight: 10 },
-      { code: 'RATE_LIMIT_EXCEEDED', message: 'Rate limit exceeded', weight: 5 },
-      { code: 'SERVER_TIMEOUT', message: 'WhatsApp server timeout - Queue full', weight: 5 },
-      { code: 'SPAM_FLAGGED', message: 'Spam detection flagged', weight: 5 },
-      { code: 'SESSION_DISCONNECTED', message: 'Session disconnected - Engine not ready', weight: 5 },
-      { code: 'NETWORK_TIMEOUT', message: 'Network timeout', weight: 5 },
-      { code: 'BUSINESS_NOT_ALLOWED', message: 'Business number not allowed', weight: 5 },
-      { code: 'PHONE_SWITCHED_OFF', message: 'Phone switched off', weight: 5 },
-      { code: 'NUMBER_DEACTIVATED', message: 'Number deactivated', weight: 3 },
-      { code: 'CARRIER_BLOCKED', message: 'Carrier blocked', weight: 2 },
-    ];
+    const hideSimPrefix = true; // per user: dont show SIMULATED_*, use real pool below
+    const errorTypes = process.env.ALLOW_TEST_SIMULATION === '1'
+      ? [
+          { code: 'NOT_ON_WHATSAPP', message: 'Number not on WhatsApp', weight: 35 },
+          { code: 'INVALID_NUMBER', message: 'Invalid number / Out of range', weight: 15 },
+          { code: 'USER_BLOCKED', message: 'User blocked / Privacy settings', weight: 10 },
+          { code: 'RATE_LIMIT_EXCEEDED', message: 'Rate limit exceeded', weight: 10 },
+          { code: 'SERVER_TIMEOUT', message: 'WhatsApp server timeout - Queue full', weight: 10 },
+          { code: 'NETWORK_TIMEOUT', message: 'Network timeout', weight: 10 },
+          { code: 'SPAM_FLAGGED', message: 'Spam detection flagged', weight: 10 },
+        ]
+      : [
+          { code: 'NOT_ON_WHATSAPP', message: 'Number not on WhatsApp', weight: 35 },
+          { code: 'INVALID_NUMBER', message: 'Invalid number / Out of range', weight: 15 },
+          { code: 'USER_BLOCKED', message: 'User blocked / Privacy settings', weight: 10 },
+          { code: 'RATE_LIMIT_EXCEEDED', message: 'Rate limit exceeded', weight: 5 },
+          { code: 'SERVER_TIMEOUT', message: 'WhatsApp server timeout - Queue full', weight: 5 },
+          { code: 'SPAM_FLAGGED', message: 'Spam detection flagged', weight: 5 },
+          { code: 'SESSION_DISCONNECTED', message: 'Session disconnected - Engine not ready', weight: 5 },
+          { code: 'NETWORK_TIMEOUT', message: 'Network timeout', weight: 5 },
+          { code: 'BUSINESS_NOT_ALLOWED', message: 'Business number not allowed', weight: 5 },
+          { code: 'PHONE_SWITCHED_OFF', message: 'Phone switched off', weight: 5 },
+          { code: 'NUMBER_DEACTIVATED', message: 'Number deactivated', weight: 3 },
+          { code: 'CARRIER_BLOCKED', message: 'Carrier blocked', weight: 2 },
+        ];
     const totalWeight = errorTypes.reduce((a, e) => a + e.weight, 0);
 
     const pickError = () => {
@@ -558,17 +572,19 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
       return errorTypes[0];
     };
 
+    const isTestSim = process.env.ALLOW_TEST_SIMULATION === '1';
     for (let i = 0; i < shuffled.length; i++) {
       const c = shuffled[i];
       const isSuccess = i < successCount;
-      // Stagger sentAt times across a realistic window (spread over burst duration)
-      const offsetMs = Math.floor(Math.random() * 300000); // up to 5 min spread
+      const offsetMs = Math.floor(Math.random() * 300000);
       if (isSuccess) {
+        // TEST web: actual delivered vs sent (message gone) split
+        const status = isTestSim && i < Math.round(successCount * 0.7) ? 'delivered' : 'sent';
         results.push({
           phone: c.phone,
           name: c.name,
           chatId: `${c.phone.replace(/\D/g, '')}@c.us`,
-          status: 'sent',
+          status,
           sentAt: new Date(now - offsetMs).toISOString(),
         });
       } else {
@@ -676,10 +692,11 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     return out;
   }
 
-  private async dispatchBurst(campaign: OutreachCampaign, runtime: SessionRuntime): Promise<void> {
+  private async dispatchBurst(campaign: OutreachCampaign, runtime: SessionRuntime, campaignRuntime?: CampaignRuntime): Promise<void> {
     const burst = runtime.bursts[runtime.nextBurstIndex];
     if (!burst) return;
     runtime.inFlight = true;
+    const sessionSessionName = (campaign.sessions ?? []).find(s => s.sessionId === burst.sessionId)?.sessionName ?? burst.sessionId;
     const cooldownMs = this.drawCooldown(campaign.strategy.cooldownMinMs, campaign.strategy.cooldownMaxMs);
     const avgDelay = avgDelayMs(campaign.strategy);
     const isMultiCamp = (campaign as any).isMulti && (campaign as any).extraMedia;
@@ -711,6 +728,9 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
           saveContactFirst: campaign.strategy.saveContactFirst,
           preCheckNumbers: campaign.strategy.preCheckNumbers,
           contactName: campaign.strategy.contactName,
+          campaignId: campaign.id,
+          campaignName: campaign.name,
+          sessionName: sessionSessionName,
         },
       });
       const fresh = await this.campaignRepository.findOne({ where: { id: campaign.id } });
@@ -744,6 +764,19 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(
         `campaign ${campaign.id} session ${runtime.sessionId} burst dispatch failed${isTransient ? ' (transient, retry in 10s)' : ''}: ${msg}`,
       );
+      // If the session no longer exists at all (deleted/unlinked), drop it permanently so the
+      // wave barrier can advance instead of retrying forever on "Session ... is not active".
+      if (isTransient && campaignRuntime) {
+        const activeSessions = await this.sessionService.findAll().catch(() => []);
+        if (!activeSessions.some(s => s.id === runtime.sessionId)) {
+          this.logger.warn(
+            `campaign ${campaign.id} session ${runtime.sessionId} no longer exists — dropping from runtime permanently`,
+          );
+          campaignRuntime.sessions.delete(runtime.sessionId);
+          await this.deactivateMissingSession(campaign.id, runtime.sessionId);
+          return;
+        }
+      }
       // Mark burst as failed pending retry
       const fresh = await this.campaignRepository.findOne({ where: { id: campaign.id } });
       if (fresh?.burstProgress) {
@@ -799,6 +832,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
               sr.bursts.length,
             );
             await this.updateSessionTally(campaign.id, sessionId, sent, failed, blocked);
+            await this.persistBurstDeliveryLog(campaign.id, sr.activeBatchId, sessionId, batch);
             sr.inFlight = false;
             sr.activeBatchId = undefined;
           }
@@ -830,7 +864,9 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     }
 
     let inFlightCount = Array.from(runtime.sessions.values()).filter(sr => sr.inFlight).length;
-    const MAX_CONCURRENT_SESSIONS = 4; // Adjust this value as needed based on optimization requirements
+    // Max sessions dispatching a burst simultaneously. Env MAX_CONCURRENT_SESSIONS wins,
+    // default 7 (supports a 5-7 session pool running one 30-message burst in parallel each).
+    const MAX_CONCURRENT_SESSIONS = Number(process.env.MAX_CONCURRENT_SESSIONS || 7);
 
     for (const [sessionId, sr] of runtime.sessions) {
       if (
@@ -848,10 +884,57 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
         // Need fresh campaign for strategy/cooldown
         const fresh = await this.campaignRepository.findOne({ where: { id: campaign.id } });
         if (fresh) {
-          await this.dispatchBurst(fresh, sr);
+          await this.dispatchBurst(fresh, sr, runtime);
           inFlightCount++;
         }
       }
+    }
+  }
+
+  /**
+   * Batch-persist every recipient outcome of a finished burst into the append-only
+   * campaign_delivery_log table in ONE insert (per burst of 30), instead of writing
+   * the messages one-by-one. Best-effort: a log failure must never interrupt the
+   * send loop, so it is wrapped in try/catch and only logs a warning.
+   */
+  private async persistBurstDeliveryLog(
+    campaignId: string,
+    batchId: string,
+    sessionId: string,
+    batch: MessageBatch,
+  ): Promise<void> {
+    if (!batch.results?.length) return;
+    const typeByChatId = new Map<string, string>();
+    for (const m of batch.messages ?? []) typeByChatId.set(m.chatId, m.type);
+    try {
+      const rows = batch.results.slice(0, 1000).map(r => {
+        const blockedFlag = isBlockedError(r.error?.code, r.error?.message);
+        let phone = r.chatId.replace(/@.*/, '');
+        if (/^\d{12}$/.test(phone) && phone.startsWith('91')) phone = phone.slice(2);
+        return {
+          campaignId,
+          batchId,
+          sessionId,
+          phone,
+          status: blockedFlag && r.status === BatchMessageStatus.FAILED ? 'blocked' : r.status,
+          waMessageId: r.messageId ?? null,
+          messageType: typeByChatId.get(r.chatId) ?? null,
+          errorCode: r.error?.code ?? null,
+          errorMessage: r.error?.message ?? null,
+          sentAt: r.sentAt ? new Date(r.sentAt) : new Date(),
+        };
+      });
+      if (!rows.length) return;
+      await this.deliveryLogRepository
+        .createQueryBuilder()
+        .insert()
+        .into(CampaignDeliveryLog)
+        .values(rows)
+        .orIgnore()
+        .execute();
+      this.logger.log(`Delivery log: batch ${batchId} → ${rows.length} rows`);
+    } catch (error) {
+      this.logger.warn(`Delivery log batch persist failed (${batchId}): ${String(error)}`);
     }
   }
 
@@ -894,7 +977,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
           db.endTime = new Date().toISOString();
           
           const simResults = this.generateSimulatedResults(db.contacts, campaign.simulatedSuccessRate);
-          db.sent = simResults.filter(r => r.status === 'sent').length;
+          db.sent = simResults.filter(r => r.status === 'sent' || r.status === 'delivered').length;
           db.failed = simResults.filter(r => r.status === 'failed').length;
           db.blocked = 0;
           db.pending = 0;
@@ -999,7 +1082,42 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     this.executionCache.delete(campaignId);
   }
 
-  private startRuntime(campaign: OutreachCampaign): void {
+  /**
+   * Mark a session's unsent bursts/progress as failed and persist it, used when the session
+   * no longer exists (deleted/unlinked) so it cannot keep the wave barrier from advancing.
+   */
+  private async deactivateMissingSession(campaignId: string, sessionId: string): Promise<void> {
+    const fresh = await this.campaignRepository.findOne({ where: { id: campaignId } });
+    if (!fresh) return;
+    const now = new Date().toISOString();
+    let changed = false;
+    if (fresh.burstProgress) {
+      for (const bp of fresh.burstProgress) {
+        if (bp.sessionId === sessionId && (bp.status === 'pending' || bp.status === 'running')) {
+          bp.status = 'failed';
+          bp.failed += bp.pending ?? 0;
+          bp.pending = 0;
+          bp.endTime = now;
+          changed = true;
+        }
+      }
+    }
+    if (fresh.sessionProgress) {
+      for (const p of fresh.sessionProgress) {
+        if (p.sessionId === sessionId) {
+          p.failed = Math.max(p.failed, p.total - p.sent);
+          p.pending = 0;
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      fresh.burstProgress = fresh.burstProgress ? [...fresh.burstProgress] : fresh.burstProgress;
+      await this.campaignRepository.save(fresh);
+    }
+  }
+
+  private async startRuntime(campaign: OutreachCampaign): Promise<void> {
     if (this.runtimes.has(campaign.id)) return;
     const runtime: CampaignRuntime = {
       campaignId: campaign.id,
@@ -1009,8 +1127,64 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
       currentWave: 0,
       waveCooldownUntil: 0,
     };
+    // Only dispatch to sessions that still exist — a deleted/unlinked session must be dropped,
+    // otherwise the wave barrier waits forever on it (infinite "Session ... is not active" retry).
+    const activeSessions = await this.sessionService.findAll();
+    const activeIds = new Set(activeSessions.map(s => s.id));
+    // Reconcile stale burstProgress against batches the previous process created but never
+    // finalised (crash/restart between createBatch and the batch-complete handler). Without this, a
+    // resume would re-dispatch an already-created burst and hit "Batch ID ... already exists"
+    // forever (batch ids are scoped unique per session).
+    const campaignPrefix = `oc-${campaign.id.slice(0, 8)}`;
+    const existingBatches = await this.bulkMessage.findBatchesByCampaignPrefix(campaignPrefix).catch(() => []);
+    const batchBySessionIndex = new Map<string, MessageBatch>();
+    for (const b of existingBatches) {
+      // batchId format: oc-<campaign8>-<session6>-<index>
+      const idxMatch = /-(\d+)$/.exec(b.batchId);
+      if (!idxMatch) continue;
+      batchBySessionIndex.set(`${b.sessionId}:${Number(idxMatch[1])}`, b);
+    }
+    const reconciled: string[] = [];
+    if (campaign.burstProgress) {
+      for (const bp of campaign.burstProgress) {
+        if (bp.status === 'completed' || bp.status === 'failed') continue;
+        const existing = batchBySessionIndex.get(`${bp.sessionId}:${bp.burstIndex}`);
+        if (!existing) continue;
+        const terminal =
+          existing.status === BatchStatus.COMPLETED ||
+          existing.status === BatchStatus.CANCELLED ||
+          existing.status === BatchStatus.FAILED;
+        if (terminal) {
+          const sent = existing.progress?.sent ?? 0;
+          const failed = existing.progress?.failed ?? 0;
+          bp.status = existing.status === BatchStatus.COMPLETED ? 'completed' : 'failed';
+          bp.batchId = existing.batchId;
+          bp.sent = sent;
+          bp.failed = failed;
+          bp.pending = Math.max(0, (bp.burstSize ?? 0) - sent - failed);
+          bp.endTime = existing.completedAt ? existing.completedAt.toISOString() : new Date().toISOString();
+          reconciled.push(`${bp.sessionName}/${bp.sessionId} burst ${bp.burstIndex} -> ${bp.status} (batch ${existing.batchId} already ${existing.status})`);
+          // Backfill delivery-log rows for a terminal batch the previous process never logged
+          // (crash between batch completion and persist). Idempotent via the (batchId, phone) key.
+          await this.persistBurstDeliveryLog(campaign.id, existing.batchId, existing.sessionId, existing);
+        }
+      }
+      if (reconciled.length) {
+        campaign.burstProgress = [...campaign.burstProgress];
+      }
+    }
+    if (reconciled.length) {
+      this.logger.log(`campaign ${campaign.name} (${campaign.id}) reconciled stale batches at resume:\n  ${reconciled.join('\n  ')}`);
+    }
     const distributionToUse = campaign.simulatedMode && campaign.realDistribution ? campaign.realDistribution : campaign.distribution;
     for (const sd of distributionToUse ?? []) {
+      if (!activeIds.has(sd.sessionId)) {
+        this.logger.warn(
+          `campaign ${campaign.name} (${campaign.id}) session ${sd.sessionName}/${sd.sessionId} no longer exists — deactivating its bursts and dropping from runtime`,
+        );
+        await this.deactivateMissingSession(campaign.id, sd.sessionId);
+        continue;
+      }
       // Re-hydrate nextBurstIndex from burstProgress (resume)
       let nextIdx = 0;
       
@@ -1078,6 +1252,11 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     const waveIndices = Array.from(runtime.sessions.values()).map(s => s.nextBurstIndex);
     runtime.currentWave = waveIndices.length ? Math.min(...waveIndices) : 0;
     runtime.waveCooldownUntil = 0;
+    // Persist any reconciliation of stale batches from the previous process before dispatching
+    if (reconciled.length) {
+      campaign.sessionProgress = campaign.sessionProgress ? [...campaign.sessionProgress] : campaign.sessionProgress;
+      await this.campaignRepository.save(campaign);
+    }
     this.runtimes.set(campaign.id, runtime);
 
     const tick = async () => {
@@ -1127,7 +1306,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     }
     await this.campaignRepository.save(campaign);
 
-    this.startRuntime(campaign);
+    await this.startRuntime(campaign);
     return this.toResponse(campaign);
   }
 
@@ -1187,17 +1366,19 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
       }
     }
     const campaigns = await this.campaignRepository.find({ where: Object.keys(where).length ? where : undefined, order: { createdAt: 'DESC' } } as any);
-    for (const c of campaigns) {
+    const listFiltered = campaigns;
+    for (const c of listFiltered) {
       const prev = c.status;
       this.recomputeEstimatesSync(c);
       if (prev !== c.status) await this.campaignRepository.save(c);
     }
-    return campaigns.map(c => this.toResponse(c));
+    return listFiltered.map(c => this.toResponse(c));
   }
 
   async history(): Promise<Array<{ id: string; name: string; messageText: string; messageType: string; status: string; contactCount: number; createdByEmail: string | null; createdByRole: string | null; createdAt: Date; startedAt: Date | null; completedAt: Date | null; totalCredits: number }>> {
     const campaigns = await this.campaignRepository.find({ order: { createdAt: 'DESC' } });
-    return campaigns.map(c => ({
+    const filtered = campaigns;
+    return filtered.map(c => ({
       id: c.id,
       name: c.name,
       messageText: (c.messageText || '').slice(0, 120),
@@ -1474,6 +1655,155 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     return result;
   }
 
+  /**
+   * Promote ledger rows from `sent` → `delivered`/`read` using the real ack pipeline that lives
+   * in the `messages` table (forward-only, via (sessionId, waMessageId)). Called at report/CSV
+   * time so the persisted ledger is as accurate as the live chat history, even after the
+   * multi-MB batch blobs were purged (messages stays and stays current).
+   */
+  private async syncDeliveredReads(campaignId: string, sessionIds: string[]): Promise<void> {
+    if (!sessionIds.length) return;
+    try {
+      await this.deliveryLogRepository.query(
+        `UPDATE campaign_delivery_log d
+           SET status = CASE WHEN m.status = 'read' THEN 'read' ELSE 'delivered' END
+          FROM messages m
+          WHERE d.campaign_id = $1
+            AND d.session_id = m.session_id
+            AND d.wa_message_id = m.wa_message_id
+            AND d.status = 'sent'
+            AND m.status IN ('delivered', 'read')`,
+        [campaignId],
+      );
+    } catch (error) {
+      this.logger.warn(`delivery-log delivered/read sync failed (${campaignId}): ${String(error)}`);
+    }
+  }
+
+  /**
+   * Delivery report straight from the append-only `campaign_delivery_log`.
+   * Guaranteed consistent even if the batch blobs were purged: this is the persisted,
+   * crash-safe ledger written once per burst (not the in-memory runtime counts).
+   */
+  async deliveryReport(id: string) {
+    const campaign = await this.campaignRepository.findOne({ where: { id } });
+    if (!campaign) throw new NotFoundException(`Campaign '${id}' not found`);
+    await this.syncDeliveredReads(id, campaign.sessions.map(s => s.sessionId));
+
+    const rows = await this.deliveryLogRepository.find({
+      where: { campaignId: campaign.id },
+      order: { createdAt: 'ASC' },
+      take: 200000,
+    });
+    const byStatus: Record<string, number> = {};
+    const bySession: Record<string, { sessionName: string; counts: Record<string, number> }> = {};
+    const sessionName = new Map(campaign.sessions.map(s => [s.sessionId, s.sessionName]));
+    for (const r of rows) {
+      byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
+      const key = r.sessionId;
+      const entry = (bySession[key] ??= { sessionName: sessionName.get(key) ?? key, counts: {} });
+      entry.counts[r.status] = (entry.counts[r.status] ?? 0) + 1;
+    }
+    let sent = byStatus['sent'] ?? 0;
+    let delivered = byStatus['delivered'] ?? 0;
+    let read = byStatus['read'] ?? 0;
+    let failed = byStatus['failed'] ?? 0;
+    let blocked = byStatus['blocked'] ?? 0;
+    let cancelled = byStatus['cancelled'] ?? 0;
+    const unknown = rows.length - sent - delivered - read - failed - blocked - cancelled;
+
+    const uniquePhones = rows.length ? await this.deliveryLogRepository
+      .createQueryBuilder('l')
+      .select('COUNT(DISTINCT l.phone)', 'n')
+      .where('l.campaignId = :id', { id: campaign.id })
+      .getRawOne<{ n: string }>() : { n: '0' };
+
+    return {
+      campaignId: id,
+      campaignName: campaign.name,
+      status: campaign.status,
+      summary: {
+        totalRows: rows.length,
+        uniquePhones: Number(uniquePhones?.n ?? 0),
+        sent,
+        delivered,
+        read,
+        failed,
+        blocked,
+        cancelled,
+        unknown,
+        deliveredOrRead: delivered + read,
+        deliveryConfirmationRate: sent + failed + blocked > 0 ? Math.round(((delivered + read) / (sent + failed + blocked)) * 1000) / 10 : 0,
+      },
+      bySession: Object.entries(bySession).map(([sessionId, v]) => ({ sessionId, sessionName: v.sessionName, counts: v.counts })),
+    };
+  }
+
+  private csvEscape(v: unknown): string {
+    const s = String(v ?? '');
+    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  }
+
+  private formatHistoryTimestamp(d: Date | string | null | undefined): string {
+    if (!d) return '';
+    const date = typeof d === 'string' ? new Date(d) : d;
+    if (Number.isNaN(date.getTime())) return '';
+    try {
+      return date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'long' }, );
+    } catch {
+      return date.toString();
+    }
+  }
+
+  /** Full per-recipient CSV matching the campaign-history format. */
+  async exportDeliveryCsv(id: string): Promise<{ filename: string; csv: string }> {
+    const campaign = await this.campaignRepository.findOne({ where: { id } });
+    if (!campaign) throw new NotFoundException(`Campaign '${id}' not found`);
+    await this.syncDeliveredReads(id, campaign.sessions.map(s => s.sessionId));
+
+    const rows = await this.deliveryLogRepository.find({
+      where: { campaignId: campaign.id },
+      order: { createdAt: 'ASC' },
+      take: 500000,
+    });
+    const header = 'phone,sessionId,status,type,waMessageId,createdAt\n';
+    const lines = rows.map(r =>
+      [
+        this.csvEscape(r.phone),
+        this.csvEscape(r.sessionId),
+        this.csvEscape(r.status),
+        this.csvEscape(r.messageType),
+        this.csvEscape(r.waMessageId),
+        this.csvEscape(this.formatHistoryTimestamp(r.sentAt ?? r.createdAt)),
+      ].join(',') + '\n',
+    );
+    const safeName = (campaign.name || 'campaign').replace(/[^\w\-]+/g, '_');
+    return { filename: `${safeName}_delivery_report.csv`, csv: header + lines.join('') };
+  }
+
+  /**
+   * Auto-cleanup: after a CSV export, purge this campaign's message_batches rows (they carry the
+   * multi-MB base64 media/result blobs). The delivery ledger in `campaign_delivery_log` is the
+   * durable copy and survives — reports still work after this runs. Never touches messages table.
+   */
+  async purgeCampaignBatches(id: string): Promise<{ purgedBatches: number; freedApproxBytes: number }> {
+    const campaign = await this.campaignRepository.findOne({ where: { id } });
+    if (!campaign) throw new NotFoundException(`Campaign '${id}' not found`);
+    if (this.runtimes.has(id)) {
+      throw new BadRequestException(`Campaign '${id}' is running. Stop it before purging batches.`);
+    }
+    const prefix = `oc-${campaign.id.slice(0, 8)}`;
+    const batches = await this.bulkMessage.findBatchesByCampaignPrefix(prefix).catch(() => []);
+    let freedApproxBytes = 0;
+    for (const b of batches) {
+      freedApproxBytes += approxJsonBytes(b.messages) + approxJsonBytes(b.results) + approxJsonBytes(b.options ?? {});
+      await this.bulkMessage.deleteBatch(b.sessionId, b.batchId).catch(() => {});
+    }
+    this.logger.log(`Purged ${batches.length} batch rows for campaign ${campaign.name} (${id}), ~${Math.round(freedApproxBytes / 1024)} KB`);
+    return { purgedBatches: batches.length, freedApproxBytes };
+  }
+
   async update(id: string, dto: Partial<CreateOutreachCampaignDto> & { caption?: string }): Promise<OutreachCampaignResponseDto> {
     const campaign = await this.campaignRepository.findOne({ where: { id } });
     if (!campaign) throw new NotFoundException(`Campaign '${id}' not found`);
@@ -1591,4 +1921,12 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
 
 function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, '');
+}
+
+function approxJsonBytes(v: unknown): number {
+  try {
+    return Buffer.byteLength(JSON.stringify(v ?? {}));
+  } catch {
+    return 0;
+  }
 }

@@ -339,6 +339,9 @@ export class WwebjsLifecycle {
         ...(this.host.config.puppeteer?.executablePath
           ? { executablePath: this.host.config.puppeteer.executablePath }
           : {}),
+        ...(this.host.config.puppeteer?.protocolTimeout
+          ? { protocolTimeout: this.host.config.puppeteer.protocolTimeout }
+          : {}),
       },
       ...(authTimeoutMs !== undefined ? { authTimeoutMs } : {}),
       ...(proxyAuthentication ? { proxyAuthentication } : {}),

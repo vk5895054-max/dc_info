@@ -230,6 +230,21 @@ class BulkMessageOptionsDto {
   @IsString()
   @MaxLength(100)
   contactName?: string;
+
+  @ApiPropertyOptional({ description: 'Owning campaign id (outreach), propagated to send-feed events.' })
+  @IsOptional()
+  @IsString()
+  campaignId?: string;
+
+  @ApiPropertyOptional({ description: 'Owning campaign name (outreach), propagated to send-feed events.' })
+  @IsOptional()
+  @IsString()
+  campaignName?: string;
+
+  @ApiPropertyOptional({ description: 'Owning session name (outreach), propagated to send-feed events.' })
+  @IsOptional()
+  @IsString()
+  sessionName?: string;
 }
 
 export class SendBulkMessageDto {

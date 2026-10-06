@@ -65,7 +65,11 @@
     "plugins": "Plugins",
     "logs": "Journaux",
     "contacts": "Contacts",
-    "campaigns": "Campaigns"
+    "campaigns": "Campaigns",
+    "grizzlySms": "Grizzly SMS",
+    "campaignHistory": "Campaign History",
+    "creditHistory": "Credit History",
+    "templateHistory": "Template History"
   },
   "chats": {
     "media": {

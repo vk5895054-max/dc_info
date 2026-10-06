@@ -76,6 +76,10 @@ export class MessageBatch {
     contactName?: string;
     /** Count of recipients dropped by the preCheckNumbers pass (0 when it did not run). */
     preCheckDropped?: number;
+    /** Outreach campaign context, carried for the per-recipient send feed (not stored/audited). */
+    campaignId?: string;
+    campaignName?: string;
+    sessionName?: string;
   };
 
   @Column({ type: jsonColumnType(), nullable: true })

@@ -120,3 +120,11 @@ data/.api-key
 data/.env.generated
 data/*.env.generated.*
 data/*.sqlite.bak.*
+test-simulation-engine.js
+stop-40k-report.js
+repair-battery.
+real-delivery-report.js
+fix-true-sent.js
+complete-battery-campaign-test.js
+DEPLOY.txt
+repair-battery.js

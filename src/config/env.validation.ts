@@ -185,6 +185,7 @@ export function validateEnv(config: EnvConfig): EnvConfig {
     'DATABASE_CONNECTION_TIMEOUT_MS',
     'REDIS_CONNECT_TIMEOUT_MS',
     'MAX_CONCURRENT_SESSIONS', // 0 = unlimited
+    'PUPPETEER_PROTOCOL_TIMEOUT',
     'INGRESS_INSTANCE_TTL',
     'WEBHOOK_DISPATCH_MAX_QUEUED',
     'STATS_CACHE_TTL_MS', // 0 = memo disabled
@@ -414,27 +415,29 @@ export function validateEnv(config: EnvConfig): EnvConfig {
     checkBool(key);
   }
 
-  // MEDIA_DOWNLOAD_ENABLED is the one boolean whose read site NORMALISES before comparing
-  // (`inbound-media-cap.ts` trims and lowercases, then treats 'false'/'0'/'no' as off), so the strict
-  // check above would reject spellings that demonstrably work — inbound-media-cap.spec.ts asserts
-  // 'FALSE' and ' false ' disable. What normalising cannot save it from is a MISSPELLING: every
-  // unrecognised value means ENABLED, so `fasle` leaves inbound media being decrypted and
-  // base64-inlined into every message row, up to MEDIA_DOWNLOAD_MAX_BYTES apiece — the most
-  // expensive behaviour the gateway has, chosen by an operator who asked for the opposite. So accept
-  // exactly the vocabulary the read site understands, and fail the boot on anything else.
+  // MEDIA_DOWNLOAD_ENABLED and FETCH_CHATS_AND_MEDIA are booleans whose read sites NORMALISE before
+  // comparing (`inbound-media-cap.ts` trims and lowercases, then treats 'false'/'0'/'no' as off for
+  // both), so the strict check above would reject spellings that demonstrably work —
+  // inbound-media-cap.spec.ts asserts 'FALSE' and ' false ' disable. What normalising cannot save
+  // them from is a MISSPELLING: every unrecognised value means ENABLED, so `fasle` leaves inbound
+  // media being decrypted and base64-inlined into every message row (up to MEDIA_DOWNLOAD_MAX_BYTES
+  // apiece — the most expensive behaviour the gateway has) and keeps per-session chat history being
+  // fetched, both chosen by an operator who asked for the opposite. So accept exactly the vocabulary
+  // the read sites understand, and fail the boot on anything else.
   const LENIENT_BOOL_VALUES = new Set(['true', '1', 'yes', 'false', '0', 'no']);
-  const lenientBoolKey = 'MEDIA_DOWNLOAD_ENABLED';
-  const lenientRaw = config[lenientBoolKey];
-  if (lenientRaw !== undefined) {
-    if (typeof lenientRaw !== 'string') {
-      errors.push(`${lenientBoolKey} must be one of true/false/1/0/yes/no`);
-    } else {
-      const normalized = lenientRaw.trim().toLowerCase();
-      if (normalized !== '' && !LENIENT_BOOL_VALUES.has(normalized)) {
-        errors.push(
-          `${lenientBoolKey} must be one of true/false/1/0/yes/no (got ${JSON.stringify(lenientRaw)}) — ` +
-            'an unrecognised value silently means ENABLED',
-        );
+  for (const lenientBoolKey of ['MEDIA_DOWNLOAD_ENABLED', 'FETCH_CHATS_AND_MEDIA']) {
+    const lenientRaw = config[lenientBoolKey];
+    if (lenientRaw !== undefined) {
+      if (typeof lenientRaw !== 'string') {
+        errors.push(`${lenientBoolKey} must be one of true/false/1/0/yes/no`);
+      } else {
+        const normalized = lenientRaw.trim().toLowerCase();
+        if (normalized !== '' && !LENIENT_BOOL_VALUES.has(normalized)) {
+          errors.push(
+            `${lenientBoolKey} must be one of true/false/1/0/yes/no (got ${JSON.stringify(lenientRaw)}) — ` +
+              'an unrecognised value silently means ENABLED',
+          );
+        }
       }
     }
   }

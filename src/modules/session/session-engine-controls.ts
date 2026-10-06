@@ -222,8 +222,9 @@ export class SessionEngineControls {
           await this.fences.teardownEngineSafely(id, orphan, e => e.forceDestroy(), 'force-destroy');
           // Fenced on ownership like the engine callbacks: initializeEngine can await a slow
           // Chromium launch for minutes, and this node's lease can lapse and be taken over inside
-          // that window. FAILED is excluded from the boot reset AND from the takeover sweep, so
-          // writing it onto a row a peer now owns strands the session on every node.
+          // that window. FAILED is recovered once at boot (session.service's startup recovery) but
+          // stays OUT of the takeover sweep, so writing it onto a row a peer now owns strands the
+          // session on every node.
           if (this.host.ownsSession(id)) {
             await this.host.updateStatus(id, SessionStatus.FAILED).catch(() => undefined);
           }

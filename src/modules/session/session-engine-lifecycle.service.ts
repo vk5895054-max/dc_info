@@ -510,8 +510,10 @@ export class SessionEngineLifecycle {
    * A lease can lapse while the process is perfectly healthy — a slow query is enough. The heartbeat
    * notices at its next tick and tears the local engine down, but until that finishes isLiveEngine
    * is still true, so a dying generation can persist a status onto a row a peer now owns. FAILED is
-   * the expensive one: it is excluded from the boot reset AND from the takeover sweep, so a session
-   * pushed into it is out of every automatic recovery path on every node until an operator acts.
+   * the expensive one: it is excluded from the takeover sweep (and from runtime auto-recovery
+   * generally) by design, so a session pushed into it is out of every runtime recovery path until
+   * an operator acts (the one exception is the single boot-time recovery in session.service's
+   * onModuleInit, which requeues previously-authenticated FAILED sessions for auto-start).
    *
    * Defaults TRUE only when no ownership service is wired, which in practice means a
    * direct-construction spec — the service is an unconditional SessionModule provider, so a running

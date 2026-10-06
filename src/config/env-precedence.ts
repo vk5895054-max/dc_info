@@ -31,6 +31,9 @@ export const BLANK_SHADOWED_ENV_KEYS: string[] = [
   'MEDIA_DOWNLOAD_MAX_BYTES',
   'MEDIA_DOWNLOAD_TIMEOUT_MS',
   'INBOUND_MEDIA_CONCURRENCY',
+  // Per-session chat/history/media backfill toggle (default on). Blank-forwarded like the inbound
+  // media knobs above, so an operator who sets nothing is not pinned off by a blank forward.
+  'FETCH_CHATS_AND_MEDIA',
   // Database selection + connection details (#488)
   'DATABASE_TYPE',
   'DATABASE_HOST',
@@ -231,6 +234,15 @@ export const BLANK_SHADOWED_ENV_KEYS: string[] = [
   'LOG_FORMAT',
   'BASE_URL',
   'DASHBOARD_URL',
+  // GrizzlySMS virtual-number purchase knobs (see configuration.ts). Blank-forwarded by compose so
+  // an operator who sets nothing is not pinned away from the documented defaults (India/WhatsApp).
+  'GRIZZLYSMS_API_KEY',
+  'GRIZZLYSMS_BASE_URL',
+  'GRIZZLYSMS_DEFAULT_COUNTRY',
+  'GRIZZLYSMS_DEFAULT_SERVICE',
+  'GRIZZLYSMS_PRICE_LADDER',
+  'GRIZZLYSMS_REQUEST_TIMEOUT_MS',
+  'GRIZZLYSMS_ACCOUNT_TOKEN',
 ];
 
 export function clearBlankEnv(env: NodeJS.ProcessEnv, keys: string[]): void {

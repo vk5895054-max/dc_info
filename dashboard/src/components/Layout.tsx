@@ -26,6 +26,7 @@ import {
   UserCircle,
   History,
   Coins,
+  Phone,
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { type UserRole } from '../hooks/useRole';
@@ -50,6 +51,7 @@ const allNavItems = [
   { to: '/campaign-history', icon: History, key: 'campaignHistory' as const, roles: ['admin','super_admin','reseller','user','demo'] },
   { to: '/template-history', icon: FileText, key: 'templateHistory' as const, roles: ['admin','super_admin','reseller','user','demo','operator','viewer'] },
   { to: '/credit-history', icon: Coins, key: 'creditHistory' as const, roles: ['admin','super_admin','reseller','user','demo','operator','viewer'] },
+  { to: '/grizzly-sms', icon: Phone, key: 'grizzlySms' as const, roles: ['admin','super_admin','reseller','user','demo','operator'] },
   { to: '/api-keys', icon: Users, key: 'apiKeys' as const, roles: ['admin','super_admin','reseller'] },
   // { to: '/message-tester', icon: Send, key: 'messageTester' as const, roles: ['admin','super_admin','reseller','user','demo'] }, // commented per request
   // { to: '/infrastructure', icon: Server, key: 'infrastructure' as const, roles: ['admin','super_admin'] }, // commented per request

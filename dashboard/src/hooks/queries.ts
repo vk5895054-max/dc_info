@@ -12,6 +12,7 @@ import {
   registryApi,
   outreachApi,
   creditApi,
+  grizzlyApi,
   type Webhook,
   type WebhookFilters,
   type TemplatePayload,
@@ -50,6 +51,9 @@ export const queryKeys = {
   outreachExecution: (id: string) => ['outreach', id, 'execution'] as const,
   creditTemplates: ['creditTemplates'] as const,
   creditHistory: (id: string) => ['creditHistory', id] as const,
+  grizzlyBalance: ['grizzly', 'balance'] as const,
+  grizzlyBalanceHistory: ['grizzly', 'balanceHistory'] as const,
+  grizzlyOrders: ['grizzly', 'orders'] as const,
 };
 
 // ── Session Queries ───────────────────────────────────────────────────
@@ -543,5 +547,67 @@ export function useDeductCreditsMutation() {
   return useMutation({
     mutationFn: (params: { id: string; amount: number }) => apiKeyApi.deductCredits(params.id, params.amount),
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys }); },
+  });
+}
+
+// ── GrizzlySMS Queries (virtual numbers, admin only) ──
+export function useGrizzlyBalanceQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.grizzlyBalance,
+    queryFn: grizzlyApi.balance,
+    enabled,
+    staleTime: 15_000,
+    retry: false,
+  });
+}
+
+export function useGrizzlyBalanceHistoryQuery(limit = 50) {
+  return useQuery({
+    queryKey: queryKeys.grizzlyBalanceHistory,
+    queryFn: () => grizzlyApi.balanceHistory(limit),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+export function useGrizzlyOrdersQuery(limit = 100) {
+  return useQuery({
+    queryKey: queryKeys.grizzlyOrders,
+    queryFn: () => grizzlyApi.orders(limit),
+    staleTime: 10_000,
+    retry: false,
+  });
+}
+
+export function useGrizzlyBuyMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { service?: string; country?: string; maxPrice?: number }) => grizzlyApi.buy(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.grizzlyOrders });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.grizzlyBalance });
+    },
+  });
+}
+
+export function useGrizzlySetStatusMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { activationId: string; status: string }) =>
+      grizzlyApi.setStatus(params.activationId, params.status),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.grizzlyOrders });
+    },
+  });
+}
+
+export function useGrizzlyTrackMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { activationId: string; phone?: string; service?: string; country?: string }) =>
+      grizzlyApi.track(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.grizzlyOrders });
+    },
   });
 }

@@ -28,6 +28,7 @@ const CampaignHistory = lazy(() => import('./pages/CampaignHistory').then(m => (
 const TemplateHistory = lazy(() => import('./pages/TemplateHistory').then(m => ({ default: m.TemplateHistory })));
 const CreditHistory = lazy(() => import('./pages/CreditHistory').then(m => ({ default: m.CreditHistory })));
 const WappBtn = lazy(() => import('./pages/WappBtn').then(m => ({ default: m.WappBtn })));
+const GrizzlySms = lazy(() => import('./pages/GrizzlySms').then(m => ({ default: m.GrizzlySms })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -129,6 +130,7 @@ function AppContent() {
                 <Route path="campaign-history" element={<CampaignHistory />} />
                 <Route path="template-history" element={<TemplateHistory />} />
                 <Route path="credit-history" element={<CreditHistory />} />
+                {['admin','super_admin','reseller','user','demo','operator'].includes(role || '') && <Route path="grizzly-sms" element={<GrizzlySms />} />}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Routes>

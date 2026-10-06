@@ -68,7 +68,8 @@
     "messageTester": "Message Tester",
     "infrastructure": "Infrastructure",
     "plugins": "Plugins",
-    "logs": "Logs"
+    "logs": "Logs",
+    "grizzlySms": "Grizzly SMS"
   },
   "chats": {
     "media": {

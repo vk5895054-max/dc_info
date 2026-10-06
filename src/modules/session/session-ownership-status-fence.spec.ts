@@ -9,10 +9,12 @@ import { createLogger } from '../../common/services/logger.service';
  * heartbeat only tears the local engine down at its next tick. In that window `isLiveEngine` is
  * still true, so an engine callback could persist a status onto a row a peer already owns.
  *
- * FAILED is the expensive one and the reason this fence exists: it is excluded from the boot reset
- * (session.service's activeStatuses) AND from the takeover sweep (TAKEOVER_STATUSES), both by
- * design, so a session pushed into it leaves every automatic recovery path on every node until an
- * operator restarts it by hand. A node that no longer owns the session must not be able to do that.
+ * FAILED is the expensive one and the reason this fence exists: it is excluded from the RUNNING
+ * takeover/recovery paths (session-engine-lifecycle's TAKEOVER path and session.service's runtime
+ * reconnect) by design, so a session pushed into it during runtime leaves every automatic recovery
+ * path on every node until an operator restarts it by hand — the single exception being the
+ * boot-time recovery in session.service's onModuleInit. A node that no longer owns the session
+ * must not be able to do that.
  */
 describe('engine status writes are fenced by ownership', () => {
   const ENGINE = { destroy: jest.fn() } as unknown as IWhatsAppEngine;

@@ -16,6 +16,7 @@ import { BaileysVersionResolver } from './baileys-version-resolver';
 import type { BaileysEvents } from './baileys-events';
 import type { BaileysHistory } from './baileys-history';
 import type { BaileysSessionStore } from './baileys-session-store';
+import { fetchChatsAndMedia } from './inbound-media-cap';
 
 /** Linked-device identity shown in WhatsApp (Settings → Linked Devices). The display name is
  * operator-brandable via BAILEYS_BROWSER_NAME; it only applies to pairings made after the change. */
@@ -256,7 +257,9 @@ export class BaileysLifecycle {
       // enabled; see WhiskeySockets/Baileys Socket/index.js + Socket/chats.js). Returning true enables it
       // while keeping the full-archive download opt-in: with syncFullHistory false WhatsApp sends the
       // RECENT window + the full contact/app-state snapshot, not the entire message history.
-      shouldSyncHistoryMessage: () => true,
+      // FETCH_CHATS_AND_MEDIA=false turns the whole backfill off (no contacts/chats/history/mappings/
+      // app-state) while live messages and sends keep working — the server stays light per session.
+      shouldSyncHistoryMessage: () => fetchChatsAndMedia(),
       syncFullHistory: process.env.BAILEYS_SYNC_FULL_HISTORY === 'true',
       // Baileys defaults markOnlineOnConnect to true: every (re)connect broadcasts `available`,
       // and WhatsApp suppresses the paired phone's push notifications while any linked device is
@@ -387,8 +390,12 @@ export class BaileysLifecycle {
       // WhatsApp only PUSHES a timelock when it changes, so a gateway that starts (or reconnects)
       // while the account is already restricted would never hear about it. Ask once per connection.
       void this.probeAccountRestriction();
-      // Backfill names the initial sync skipped (see BaileysHistory.hydrateNames).
-      void this.host.hydrateNames();
+      // Backfill names the initial sync skipped (see BaileysHistory.hydrateNames). Skipped entirely
+      // when FETCH_CHATS_AND_MEDIA=false — group-subject fetch + app-state resync are part of the
+      // heavy per-session backfill, not live messaging.
+      if (fetchChatsAndMedia()) {
+        void this.host.hydrateNames();
+      }
     }
 
     if (connection === 'close') {

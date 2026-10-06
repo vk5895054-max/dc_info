@@ -149,6 +149,26 @@ export class SessionService implements OnModuleDestroy, OnModuleInit, OnApplicat
         nodeId: this.ownership?.nodeId,
       });
     }
+
+    // Boot-only recovery for FAILED sessions: a session that failed while the process was running
+    // (transient DB trouble, a crash on shutdown, an engine hiccup) can still hold valid credentials,
+    // and auto-start below relaunches it, so a restart no longer strands sessions until a human
+    // clicks restart. Scoped to what this node may claim, like the reset above, and restricted to
+    // previously-authenticated sessions (phone set): one that never connected is left FAILED for the
+    // operator. It is intentionally NOT retried during runtime — FAILED stays out of the takeover
+    // sweep, so a genuinely dead account (logged out from the phone, banned) does not loop-relaunch.
+    const failedRecovery = await this.sessionRepository.update(
+      claimable.map(clause => ({ ...clause, phone: Not(IsNull()), status: SessionStatus.FAILED })),
+      { status: SessionStatus.DISCONNECTED },
+    );
+
+    if (failedRecovery.affected && failedRecovery.affected > 0) {
+      this.logger.log(`Queued ${failedRecovery.affected} failed session(s) for auto-reconnect on startup`, {
+        action: 'startup_failed_recovery',
+        affected: failedRecovery.affected,
+        nodeId: this.ownership?.nodeId,
+      });
+    }
   }
 
   onApplicationBootstrap(): void {

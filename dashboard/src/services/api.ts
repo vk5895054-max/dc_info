@@ -1710,3 +1710,80 @@ export const resellerApi = {
   changeOwnPassword: (oldPassword: string, newPassword: string) => request<{ success: boolean }>(`/auth/reseller/me/password`, { method: 'PUT', body: JSON.stringify({ oldPassword, newPassword }) }),
   changeUserPassword: (id: string, newPassword: string) => request<{ success: boolean }>(`/auth/reseller/${id}/password`, { method: 'PUT', body: JSON.stringify({ newPassword }) }),
 };
+
+// =============================================================================
+// GrizzlySMS API — virtual numbers (India wa default), mirrors src/modules/grizzlysms
+// =============================================================================
+
+export interface GrizzlyOrder {
+  id: string;
+  activationId: string;
+  phone: string | null;
+  service: string;
+  country: string;
+  priceUsed: number | null;
+  status: string;
+  rawResponse: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GrizzlyBalance {
+  balance: number;
+  currency: string | null;
+  raw: string;
+}
+
+export interface GrizzlyBalanceSnapshot {
+  id: string;
+  balance: number;
+  currency: string | null;
+  rawResponse: string | null;
+  createdAt: string;
+}
+
+export interface GrizzlyOrderStatus {
+  status: string;
+  raw: string;
+}
+
+export interface GrizzlyAccountNumber {
+  id: number;
+  number: string;
+  status: number;
+  code: string | null;
+  price: string;
+  service_name: string;
+  service_code: string;
+  country_code: string;
+  country_phone_code: string;
+  country_name: string;
+  provider_id: number;
+  is_active: number;
+  created_at: string;
+  end_at: string;
+  allow_cancel_sec: number;
+  multiple_sms: boolean;
+  sms_tip: string | null;
+}
+
+export const grizzlyApi = {
+  balance: () => request<GrizzlyBalance>('/grizzlysms/balance'),
+  balanceHistory: (limit = 50) => request<GrizzlyBalanceSnapshot[]>(`/grizzlysms/balance/history?limit=${limit}`),
+  orders: (limit = 100) => request<GrizzlyOrder[]>(`/grizzlysms/orders?limit=${limit}`),
+  buy: (data: { service?: string; country?: string; maxPrice?: number }) =>
+    request<GrizzlyOrder>('/grizzlysms/order', { method: 'POST', body: JSON.stringify(data) }),
+  status: (activationId: string) =>
+    request<GrizzlyOrderStatus>(`/grizzlysms/order/${encodeURIComponent(activationId)}/status`),
+  setStatus: (activationId: string, status: string) =>
+    request<{ ok: string; raw: string }>(`/grizzlysms/order/${encodeURIComponent(activationId)}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    }),
+  track: (data: { activationId: string; phone?: string; service?: string; country?: string }) =>
+    request<GrizzlyOrder>('/grizzlysms/track', { method: 'POST', body: JSON.stringify(data) }),
+  accountNumbers: (token?: string) =>
+    request<GrizzlyAccountNumber[]>('/grizzlysms/account/numbers', {
+      headers: token ? { 'X-Grizzly-Token': token } : {},
+    }),
+};

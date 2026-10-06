@@ -76,6 +76,7 @@ export interface WhatsAppWebJsConfig {
     headless?: boolean;
     args?: string[];
     executablePath?: string;
+    protocolTimeout?: number;
   };
   // Phase 3: Proxy per session
   proxy?: {

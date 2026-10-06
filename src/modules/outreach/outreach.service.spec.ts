@@ -44,6 +44,7 @@ describe('OutreachService', () => {
       createBatch: jest.fn(),
       getBatchStatus: jest.fn(),
       cancelBatch: jest.fn(),
+      findBatchesByCampaignPrefix: jest.fn().mockResolvedValue([]),
     };
     const restrictionStore = {
       get: jest.fn().mockReturnValue(undefined),

@@ -48,13 +48,19 @@ export class WhatsAppWebJsPlugin implements IEnginePlugin {
     // per-call config carries only engine-neutral fields (sessionId, proxy).
     const engineConfig = (this.context?.config ?? this.registeredConfig ?? {}) as {
       sessionDataPath?: string;
-      puppeteer?: { headless?: boolean; args?: string[]; executablePath?: string };
+      puppeteer?: {
+        headless?: boolean;
+        args?: string[];
+        executablePath?: string;
+        protocolTimeout?: number;
+      };
     };
     const puppeteer = engineConfig.puppeteer ?? {};
     const sessionDataPath = engineConfig.sessionDataPath ?? './data/sessions';
     const headless = puppeteer.headless ?? true;
     const puppeteerArgs = puppeteer.args ?? ['--no-sandbox', '--disable-setuid-sandbox'];
     const executablePath = puppeteer.executablePath;
+    const protocolTimeout = puppeteer.protocolTimeout;
 
     return new WhatsAppWebJsAdapter({
       sessionId,
@@ -63,6 +69,7 @@ export class WhatsAppWebJsPlugin implements IEnginePlugin {
         headless,
         args: puppeteerArgs,
         executablePath,
+        protocolTimeout,
       },
       proxy: proxyUrl
         ? {

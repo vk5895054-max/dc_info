@@ -49,8 +49,10 @@ import { IntegrationModule } from './modules/integration/integration.module';
 import { SearchModule } from './modules/search/search.module';
 import { SupabaseModule } from './modules/supabase/supabase.module';
 import { CreditModule } from './modules/credit/credit.module';
+import { GrizzlySmsModule } from './modules/grizzlysms/grizzlysms.module';
 import { PanelModule } from './modules/panel/panel.module';
 import { SqlitePermissionsBoot } from './database/sqlite-file-permissions';
+import { SendFeedModule } from './common/realtime/send-feed.module';
 
 // Only import QueueModule if explicitly enabled to avoid Redis connection errors
 const queueModules: Array<Type | DynamicModule> = [];
@@ -214,6 +216,7 @@ if (dashboardServingEnabled && dashboardBuildPresent) {
             __dirname + '/modules/outreach/**/*.entity{.ts,.js}',
             __dirname + '/modules/registry/**/*.entity{.ts,.js}',
             __dirname + '/modules/credit/**/*.entity{.ts,.js}',
+            __dirname + '/modules/grizzlysms/**/*.entity{.ts,.js}',
           ],
           migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
           logging: configService.get<boolean>('dataDatabase.logging', false),
@@ -337,6 +340,7 @@ if (dashboardServingEnabled && dashboardBuildPresent) {
     StorageModule,
     AuditModule,
     EventsModule, // WebSocket real-time events
+    SendFeedModule, // per-recipient send feed (SSE), kept out of console logs
     ...queueModules,
     AuthModule,
     EngineModule,
@@ -368,6 +372,7 @@ if (dashboardServingEnabled && dashboardBuildPresent) {
     AgentToolsModule, // Agent-invocable tool registry (protocol-neutral)
     IntegrationModule, // Integration Fabric: @Public provider-webhook ingress + fast-ack pipeline
     CreditModule, // Reseller credit templates (per-message credit costs)
+    GrizzlySmsModule, // GrizzlySMS virtual-number purchases + balance history (admin)
     PanelModule, // Panel hours 10-18 for reseller/user
     ...searchModules, // Global message search (opt-out via SEARCH_ENABLED=false; default ON)
     ...mcpModules, // MCP Streamable-HTTP server (opt-in via MCP_ENABLED=true)

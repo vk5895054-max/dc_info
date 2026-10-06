@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Not, QueryDeepPartialEntity, Repository } from 'typeorm';
+import { In, Like, Not, QueryDeepPartialEntity, Repository } from 'typeorm';
 import { createHash, randomUUID } from 'crypto';
 import { setTimeout } from 'node:timers/promises';
 import {
@@ -37,6 +37,7 @@ import { renderTemplate } from '../../common/utils/template-render';
 import { IWhatsAppEngine, MessageResult } from '../../engine/interfaces/whatsapp-engine.interface';
 import { resolveNonNegativeIntEnv } from '../../config/configuration';
 import { resolveFeatureFlags } from '../../config/feature-flags';
+import { SendFeedService } from '../../common/realtime/send-feed.service';
 
 // Type definitions for bulk message content
 interface BulkMessageContent {
@@ -136,6 +137,11 @@ export class BulkMessageService implements OnApplicationBootstrap {
     // restriction store the batch loop polls to stop a campaign the instant the account is flagged.
     @Optional()
     private readonly restrictionStore?: SessionRestrictionStore,
+    // Trailing-@Optional (injected via the global SendFeedModule): publishes a per-recipient
+    // "sent" event for the real-time SSE feed. Absent in direct-construction unit tests — the
+    // send loop must never depend on it.
+    @Optional()
+    private readonly sendFeed?: SendFeedService,
   ) {}
 
   /**
@@ -308,6 +314,10 @@ export class BulkMessageService implements OnApplicationBootstrap {
       preCheckNumbers: dto.options?.preCheckNumbers ?? flags.bulkPreCheckNumbersDefault,
       saveContactFirst: dto.options?.saveContactFirst ?? flags.bulkSaveContactFirstDefault,
       contactName: dto.options?.contactName?.trim() || undefined,
+      // Outreach campaign context for the real-time send feed (undefined for plain bulk sends).
+      campaignId: (dto.options as any)?.campaignId,
+      campaignName: (dto.options as any)?.campaignName,
+      sessionName: (dto.options as any)?.sessionName,
     };
 
     // Content-rotation guard: sending the SAME body to more than N recipients with NO per-recipient
@@ -407,6 +417,24 @@ export class BulkMessageService implements OnApplicationBootstrap {
     }
 
     return batch;
+  }
+
+  /**
+   * Fetch every batch belonging to a campaign (batch ids are prefixed `oc-<campaign8>`), used at
+   * campaign resume time to reconcile burstProgress against batches the previous process created
+   * but never finalised (crash/restart between createBatch and the batch-complete handler).
+   */
+  async findBatchesByCampaignPrefix(prefix: string): Promise<MessageBatch[]> {
+    return this.batchRepository.find({ where: { batchId: Like(`${prefix}%`) } });
+  }
+
+  /**
+   * Delete a persisted batch row (and its result/media blobs). Used by the post-export purge so a
+   * finished campaign stops holding multi-MB rows in message_batches. The per-campaign delivery
+   * ledger (campaign_delivery_log) is separate and is NOT affected.
+   */
+  async deleteBatch(sessionId: string, batchId: string): Promise<void> {
+    await this.batchRepository.delete({ batchId, sessionId });
   }
 
   async cancelBatch(sessionId: string, batchId: string): Promise<MessageBatch> {
@@ -687,6 +715,29 @@ export class BulkMessageService implements OnApplicationBootstrap {
       // the engine reported, and a Baileys API send echoes a media-less marker. The two writers
       // dedup on UNIQUE(sessionId, waMessageId).
       await this.persistSentMessage(batch.sessionId, msg.chatId, msg.type, content, messageResult);
+
+      // Real-time per-recipient feed (kept OUT of the console logs by design). Fire-and-forget:
+      // a feed consumer hiccup must never slow the send loop. Only campaign sends publish here —
+      // a plain bulk batch has no campaignId on its options.
+      try {
+        if (this.sendFeed && batch.options.campaignId) {
+          const phone = msg.chatId.replace(/@.*/, '');
+          this.sendFeed.publish({
+            campaignId: batch.options.campaignId,
+            campaignName: batch.options.campaignName ?? '',
+            sessionId: batch.sessionId,
+            sessionName: batch.options.sessionName ?? batch.sessionId,
+            chatId: msg.chatId,
+            phone,
+            messageType: msg.type,
+            status: 'sent',
+            messageId: messageResult.id,
+            at: new Date().toISOString(),
+          });
+        }
+      } catch {
+        // never break the send loop over the feed
+      }
 
       this.logger.debug(`Batch ${batch.batchId}: Sent message ${i + 1}/${batch.messages.length} to ${msg.chatId}`);
     } catch (error) {

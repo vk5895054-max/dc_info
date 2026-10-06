@@ -1,6 +1,6 @@
-import { Controller, Get, Post, Delete, Put, Param, Body, HttpCode, HttpStatus, Req, Query } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Put, Param, Body, HttpCode, HttpStatus, Req, Query, Header, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Response } from 'express';
 import { OutreachService } from './outreach.service';
 import { CurrentApiKey } from '../auth/decorators/auth.decorators';
 import { ApiKey } from '../auth/entities/api-key.entity';
@@ -117,6 +117,44 @@ export class OutreachController {
   @ApiResponse({ status: 200 })
   execution(@Param('id') id: string, @Query('full') full?: string) {
     return this.outreach.executionReport(id, full === '1');
+  }
+
+  @Get(':id/delivery')
+  @ApiOperation({
+    summary: 'Delivery report from the persisted campaign_delivery_log ledger (accurate per-recipient counts, survives purge).',
+  })
+  @ApiResponse({ status: 200 })
+  delivery(@Param('id') id: string) {
+    return this.outreach.deliveryReport(id);
+  }
+
+  @Get(':id/delivery/csv')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @ApiOperation({
+    summary: 'Per-recipient delivery CSV (phone,sessionId,status,type,waMessageId,createdAt) from the persisted ledger.',
+  })
+  async deliveryCsv(@Param('id') id: string, @Res() res: Response): Promise<void> {
+    const { filename, csv } = await this.outreach.exportDeliveryCsv(id);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename.replace(/"/g, '')}"`);
+    res.send(csv.startsWith('phone,') ? csv : `phone,sessionId,status,type,waMessageId,createdAt\n${csv}`);
+  }
+
+  @Post(':id/delivery/purge')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Export CSV then purge the campaign\'s message_batches blobs (free-tier space saver). Ledger is kept; reports still work.',
+  })
+  async exportAndPurge(
+    @Param('id') id: string,
+    @Res() res: Response,
+    @Query('alsoDelete') alsoDelete?: string,
+  ): Promise<void> {
+    const { filename, csv } = await this.outreach.exportDeliveryCsv(id);
+    const purge = await this.outreach.purgeCampaignBatches(id);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename.replace(/"/g, '')}"`);
+    if (alsoDelete === 'true') await this.outreach.remove(id);
+    res.send(csv.startsWith('phone,') ? csv : `phone,sessionId,status,type,waMessageId,createdAt\n${csv}`);
   }
 
   @Get(':id/replies')

@@ -5803,6 +5803,22 @@ describe('SessionService', () => {
       const where = calls[0][0][0];
       expect(where.status.value).toEqual(expect.arrayContaining([SessionStatus.ACTION_REQUIRED]));
     });
+
+    it('requeues previously-authenticated FAILED sessions for auto-reconnect at boot', async () => {
+      (repository.update as jest.Mock).mockResolvedValue({ affected: 1 });
+
+      await service.onModuleInit();
+
+      // A session that failed while the process was running (transient DB trouble, engine hiccup)
+      // still holds valid credentials and must come back across a restart — but only if it has a
+      // phone set (is actually authenticated), never for a session that never connected.
+      const calls = (repository.update as jest.Mock).mock.calls as Array<[Array<Record<string, unknown>>]>;
+      const failedReset = calls.find(call => call[0][0].status === SessionStatus.FAILED);
+      expect(failedReset).toBeDefined();
+      const failedWhere = failedReset![0][0];
+      expect(failedWhere.status).toBe(SessionStatus.FAILED);
+      expect(failedWhere.phone).toBeDefined();
+    });
   });
 
   // ── onModuleDestroy ───────────────────────────────────────────────
